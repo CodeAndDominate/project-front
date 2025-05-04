@@ -12,8 +12,8 @@
                 getPagination();
             })
             $('#pagination').on('click', '.page-btn', function () {
-                $('.page-btn').removeClass('active'); // Сброс всех активных состояний
-                $(this).addClass('active'); // Подсветка текущей кнопки
+                $('.page-btn').removeClass('active');
+                $(this).addClass('active');
                 getPage();
             });
             $('#createAccount').on('click', function () {
