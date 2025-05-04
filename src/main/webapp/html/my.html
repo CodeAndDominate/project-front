@@ -1,11 +1,377 @@
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>RPG</title>
     <script src=https://code.jquery.com/jquery-3.6.0.min.js></script>
     <link href="/css/my.css" rel="stylesheet">
+    <script>
+        function completeSetup() {
+            getPagination();
+            getPage();
+            $('#pet-select').on('change', function () {
+                getPagination();
+            })
+            $('#pagination').on('click', '.page-btn', function () {
+                $('.page-btn').removeClass('active'); // Сброс всех активных состояний
+                $(this).addClass('active'); // Подсветка текущей кнопки
+                getPage();
+            });
+            $('#createAccount').on('click', function () {
+                createPlayer()
+            })
+        }
+
+        function getPage() {
+            $('#adminTable tbody').empty();
+            const pageNumber = $('#pagination button.active').text();
+            $.get('rest/players', {
+                'pageNumber': pageNumber === '' ? 0 : pageNumber - 1,
+                'pageSize': parseInt($('#pet-select').val())
+            }, response => {
+                for (const responseKey in response) {
+                    let line = response[responseKey]
+                    let row = $('<tr>')
+                    let idTd = $('<td>').text(line.id)
+                    let nameTd = $('<td>').text(line.name)
+                    let titleTd = $('<td>').text(line.title)
+                    let raceTd = $('<td>').text(line.race);
+                    let professionTd = $('<td>').text(line.profession);
+                    let bannedTd = $('<td>').text(line.banned);
+                    row.append(idTd);
+                    row.append(nameTd);
+                    row.append(titleTd);
+                    row.append(raceTd);
+                    row.append(professionTd);
+                    row.append($('<td>').text(line.level));
+                    row.append($('<td>').text(new Date(line.birthday).toLocaleDateString("en-US")));
+                    row.append(bannedTd);
+
+                    let editTd = $('<td>').append($('<img>').attr('src', '/img/edit.png'));
+                    row.append(editTd);
+
+                    let deleteTd = $('<td>').append($('<img>').attr('src', '/img/delete.png'));
+                    deleteTd.on('click', function () {
+                        removeById(line.id);
+                    });
+                    row.append(deleteTd);
+
+                    editTd.on('click', function () {
+                        editTd.find('img').attr('src', '/img/save.png');
+                        deleteTd.hide();
+                        nameTd.attr('contenteditable', 'true');
+                        titleTd.attr('contenteditable', 'true');
+
+                        setupRaceField(raceTd, line);
+                        setupProfessionField(professionTd, line);
+                        setupBannedField(bannedTd, line);
+
+                        editTd.off('click');
+                        editTd.on('click', function () {
+                            let name = nameTd.text()
+                            let title = titleTd.text()
+                            let race = raceTd.find('select').val()
+                            let profession = professionTd.find('select').val()
+                            let banned = bannedTd.find('select').val()
+                            updatePlayerData(line.id, JSON.stringify({name, title, race, profession, banned}))
+                        })
+                    });
+
+                    $('#adminTable tbody').append(row);
+                }
+            })
+        }
+
+        function getPagination() {
+            $('#pagination').empty();
+            $.get('rest/players/count', response => {
+                let pages = response / parseInt($('#pet-select').val())
+                pages = Math.ceil(pages);
+                for (let i = 1; i <= pages; i++) {
+                    $('#pagination').append(`<button class="page-btn" data-page="${i}">${i}</button>`);
+                }
+            });
+        }
+
+        function removeById(id) {
+            $.ajax({
+                url: `rest/players/${id}`,
+                type: 'DELETE',
+                success: function (response) {
+                    getPage()
+                    getPagination()
+                }
+            });
+        }
+
+        function updatePlayerData(id, data) {
+            $.ajax({
+                url: `rest/players/${id}`,
+                type: 'POST',
+                contentType: 'application/json',
+                data: data,
+                success: function (response) {
+                    getPage();
+                }
+            });
+        }
+
+        function createPlayer() {
+            let name = $('#name').val();
+            let title = $('#title').val();
+            let race = $('#race').val();
+            let profession = $('#profession').val();
+            let level = $('#level').val();
+            let birthday = Date.parse($('#birthday').val())
+            let banned = $('#banned').val();
+            $.ajax({
+                url: `rest/players`,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({name, title, race,
+                    profession, level, birthday, banned}),
+                success: function (response) {
+                    console.log(response)
+                    getPage()
+                    getPagination()
+                    $('#name').val('')
+                    $('#title').val('')
+                    $('#race').val('HUMAN')
+                    $('#profession').val('WARRIOR')
+                    $('#level').val('')
+                    $('#birthday').val('')
+                    $('#banned').val('true')
+                }
+            });
+        }
+
+        function setupRaceField(race, line) {
+            const select = $('<select>')
+                .append($('<option>').val('HUMAN').text('HUMAN'))
+                .append($('<option>').val('DWARF').text('DWARF'))
+                .append($('<option>').val('ELF').text('ELF'))
+                .append($('<option>').val('GIANT').text('GIANT'))
+                .append($('<option>').val('ORC').text('ORC'))
+                .append($('<option>').val('TROLL').text('TROLL'))
+                .append($('<option>').val('HOBBIT').text('HOBBIT'));
+            select.val(line.race.toString());
+            race.attr('contenteditable', 'true');
+            race.html(select);
+        }
+
+        function setupProfessionField(profession, line) {
+            const select = $('<select>')
+                .append($('<option>').val('WARRIOR').text('WARRIOR'))
+                .append($('<option>').val('ROGUE').text('ROGUE'))
+                .append($('<option>').val('SORCERER').text('SORCERER'))
+                .append($('<option>').val('CLERIC').text('CLERIC'))
+                .append($('<option>').val('PALADIN').text('PALADIN'))
+                .append($('<option>').val('NAZGUL').text('NAZGUL'))
+                .append($('<option>').val('WARLOCK').text('WARLOCK'))
+                .append($('<option>').val('DRUID').text('DRUID'));
+            select.val(line.profession.toString());
+            profession.attr('contenteditable', 'true');
+            profession.html(select);
+        }
+
+        function setupBannedField(banned, line) {
+            const select = $('<select>')
+                .append($('<option>').val('true').text('true'))
+                .append($('<option>').val('false').text('false'));
+            select.val(line.banned.toString());
+            banned.attr('contenteditable', 'true');
+            banned.html(select);
+        }
+
+        window.onload = completeSetup;
+    </script>
+    <style>
+        #adminTable {
+            width: 60%;
+            border-collapse: collapse;
+        }
+
+        #adminTable th, #adminTable td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        #adminTable th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+
+        #adminTable tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        #adminTable tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        #adminTable img {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .pagination {
+            display: flex;
+            gap: 10px;
+            padding: 10px;
+        }
+
+        .pagination button {
+            padding: 5px 10px;
+            border: 1px solid #ccc;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .pagination button.active {
+            background: #007bff;
+            color: #fff;
+            border-color: #007bff;
+        }
+
+        [contenteditable="true"] {
+            border: 2px solid blue;
+            outline: none;
+            padding: 5px;
+            background-color: #e6f3ff;
+        }
+
+        td[contenteditable="true"] {
+            border: 2px solid blue;
+            outline: none;
+            padding: 5px;
+            background-color: #e6f3ff;
+        }
+
+        #goodDiv {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            max-width: 500px;
+        }
+
+        #goodDiv > div {
+            display: flex;
+            align-items: center;
+            margin: 3px 0;
+            width: 100%;
+        }
+
+        #goodDiv label {
+            width: 120px;
+            text-align: left;
+            margin-right: 10px;
+        }
+
+        #goodDiv input, #goodDiv select {
+            width: 200px;
+            margin: 7px 0;
+            padding: 5px;
+        }
+
+        #goodDiv button {
+            align-self: center;
+            padding: 8px 20px;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body>
-<h1>RPG admin panel</h1>
+<h1>RPG admin pane</h1>
+<h2>Accounts list:</h2>
+<div>
+    Count per page:
+    <span>
+        <select id="pet-select">
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+        </select>
+    </span>
+</div>
+<table id="adminTable">
+    <thead>
+    <tr>
+        <th>#</th>
+        <th>Name</th>
+        <th>Title</th>
+        <th>Race</th>
+        <th>Profession</th>
+        <th>Level</th>
+        <th>Birthday</th>
+        <th>Banned</th>
+        <th>Edit</th>
+        <th>Delete</th>
+    </tr>
+    </thead>
+    <tbody>
+    </tbody>
+</table>
+<div>
+    <nav class="pagination" id="pagination"></nav>
+</div>
+<div id="goodDiv">
+    <hr/>
+    <h2>Create new account:</h2>
+    <div>
+        <label for="name">Name:</label>
+        <input id="name" type="text" minlength="1" maxlength="12"/>
+    </div>
+    <div>
+        <label for="title">Title:</label>
+        <input id="title" type="text" minlength="1" maxlength="30"/>
+    </div>
+    <div>
+        <label for="race">Race:</label>
+        <select id="race">
+            <option value="HUMAN">HUMAN</option>
+            <option value="DWARF">DWARF</option>
+            <option value="ELF">ELF</option>
+            <option value="GIANT">GIANT</option>
+            <option value="ORC">ORC</option>
+            <option value="TROLL">TROLL</option>
+            <option value="HOBBIT">HOBBIT</option>
+        </select>
+    </div>
+    <div>
+        <label for="profession">Profession:</label>
+        <select id="profession">
+            <option value="WARRIOR">WARRIOR</option>
+            <option value="ROGUE">ROGUE</option>
+            <option value="SORCERER">SORCERER</option>
+            <option value="CLERIC">CLERIC</option>
+            <option value="PALADIN">PALADIN</option>
+            <option value="NAZGUL">NAZGUL</option>
+            <option value="WARLOCK">WARLOCK</option>
+            <option value="DRUID">DRUID</option>
+        </select>
+    </div>
+    <div>
+        <label for="level">Level:</label>
+        <input id="level" type="number" min="0" max="100"/>
+    </div>
+    <div>
+        <label for="birthday">Birthday:</label>
+        <input id="birthday" type="date"/>
+    </div>
+    <div>
+        <label for="banned">Banned:</label>
+        <select id="banned">
+            <option value="true">true</option>
+            <option value="false">false</option>
+        </select>
+    </div>
+    <div>
+        <button id="createAccount">Save</button>
+    </div>
+</div>
+
 
 </body>
 </html>
