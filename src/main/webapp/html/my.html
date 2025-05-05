@@ -83,11 +83,17 @@
 
         function getPagination() {
             $('#pagination').empty();
-            $.get('rest/players/count', response => {
-                let pages = response / parseInt($('#pet-select').val())
-                pages = Math.ceil(pages);
-                for (let i = 1; i <= pages; i++) {
-                    $('#pagination').append(`<button class="page-btn" data-page="${i}">${i}</button>`);
+            $.ajax({
+                url: 'rest/players/count',
+                type: 'GET',
+                async: false,
+                success: function(response) {
+                    let pages = response / parseInt($('#pet-select').val());
+                    pages = Math.ceil(pages);
+                    for (let i = 1; i <= pages; i++) {
+                        $('#pagination').append(`<button class="page-btn" data-page="${i}">${i}</button>`);
+                    }
+                    $('#pagination').children().eq(0).addClass('active');
                 }
             });
         }
@@ -97,8 +103,11 @@
                 url: `rest/players/${id}`,
                 type: 'DELETE',
                 success: function (response) {
+                    const pageNumber = $('#pagination button.active').text() - 1;
                     getPage()
                     getPagination()
+                    $('#pagination').children().eq(0).removeClass('active');
+                    $('#pagination').children().eq(pageNumber).addClass('active');
                 }
             });
         }
